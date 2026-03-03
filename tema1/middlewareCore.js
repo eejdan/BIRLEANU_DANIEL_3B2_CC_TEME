@@ -62,12 +62,12 @@ const pipeline = [logger, urlDecoder, bodyParser];
  * @param {http.ServerResponse} res 
  */
 const requestPipeline = (req, res) => {
-
+/* 
     for(let i = 0; i < pipeline.length -1; i++) {
         pipeline[i](req, res, () => {});
     }
     routeHandler(req, res);
-    /* 
+ */
         logger(req, res, () => {
             urlDecoder(req, res, () => {
                 bodyParser(req, res, () => {
@@ -75,7 +75,6 @@ const requestPipeline = (req, res) => {
                 });
             });
         }); 
-    */
 };
 
 module.exports = { requestPipeline };
