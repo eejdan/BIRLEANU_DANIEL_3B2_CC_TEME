@@ -7,22 +7,19 @@ const authorsController = require('./authorsController');
 
 const { logger, urlDecoder, bodyParser } = require('./middleware/middleware');
 
-// Initialize router and register routes
 const router = new RouteMapper();
 
-// Books routes (2 routes per HTTP method)
-router.get('/books', booksController.getAllBooks);           // Collection
-router.get('/books/:id', booksController.getBookById);       // Resource
-router.post('/books', booksController.createBook);           // Collection
-router.put('/books/:id', booksController.updateBook);        // Resource
-router.delete('/books/:id', booksController.deleteBook);     // Resource
+router.get('/books', booksController.getAllBooks);
+router.get('/books/:id', booksController.getBookById);
+router.post('/books', booksController.createBook);
+router.put('/books/:id', booksController.updateBook);
+router.delete('/books/:id', booksController.deleteBook);
 
-// Authors routes (2 routes per HTTP method)
-router.get('/authors', authorsController.getAllAuthors);     // Collection
-router.get('/authors/:id', authorsController.getAuthorById); // Resource
-router.post('/authors', authorsController.createAuthor);     // Collection
-router.put('/authors/:id', authorsController.updateAuthor);  // Resource
-router.delete('/authors/:id', authorsController.deleteAuthor); // Resource
+router.get('/authors', authorsController.getAllAuthors);
+router.get('/authors/:id', authorsController.getAuthorById);
+router.post('/authors', authorsController.createAuthor); 
+router.put('/authors/:id', authorsController.updateAuthor);
+router.delete('/authors/:id', authorsController.deleteAuthor);
 
 /**
  * Middleware to match routes and execute handlers

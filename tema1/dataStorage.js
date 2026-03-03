@@ -10,10 +10,7 @@ class DataStorage {
         this.ensureDataDirectory();
         this.ensureFileExists();
     }
-    
-    /**
-     * Ensure the data directory exists
-     */
+
     ensureDataDirectory() {
         const dataDir = path.join(__dirname, 'data');
         if (!fs.existsSync(dataDir)) {
@@ -21,9 +18,6 @@ class DataStorage {
         }
     }
     
-    /**
-     * Ensure the data file exists with initial empty array
-     */
     ensureFileExists() {
         if (!fs.existsSync(this.filePath)) {
             fs.writeFileSync(this.filePath, JSON.stringify([], null, 2), 'utf-8');
