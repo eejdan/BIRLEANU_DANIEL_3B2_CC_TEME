@@ -1,0 +1,35 @@
+[
+  {
+    "id": 1,
+    "name": "Harper Lee",
+    "birthYear": 1926,
+    "nationality": "British-American",
+    "biography": "Updated biography with more details about the author's life and works.",
+    "createdAt": "2026-03-02T10:00:00.000Z",
+    "updatedAt": "2026-03-02T21:38:02.714Z"
+  },
+  {
+    "id": 2,
+    "name": "George Orwell",
+    "birthYear": 1903,
+    "nationality": "British",
+    "biography": "Eric Arthur Blair, known by his pen name George Orwell, was an English novelist, essayist, journalist and critic.",
+    "createdAt": "2026-03-02T10:00:00.000Z"
+  },
+  {
+    "id": 3,
+    "name": "Jane Austen",
+    "birthYear": 1775,
+    "nationality": "British",
+    "biography": "Jane Austen was an English novelist known primarily for her six major novels which critique the British landed gentry.",
+    "createdAt": "2026-03-02T10:00:00.000Z"
+  },
+  {
+    "id": 4,
+    "name": "Ernest Hemingway",
+    "birthYear": 1899,
+    "nationality": "American",
+    "biography": "Ernest Miller Hemingway was an American novelist, short-story writer, and journalist.",
+    "createdAt": "2026-03-02T21:37:56.033Z"
+  }
+]

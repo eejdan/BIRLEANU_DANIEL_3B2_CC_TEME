@@ -1,0 +1,354 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"name": "RESTful API - Books & Authors",
+		"description": "Complete API collection for testing the Books and Authors RESTful API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Books",
+			"item": [
+				{
+					"name": "Get All Books",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/books",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"books"
+							]
+						},
+						"description": "Retrieve all books from the collection.\n\n**Safe:** Yes  \n**Idempotent:** Yes  \n**Expected Status:** 200 OK"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Book by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/books/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"books",
+								"1"
+							]
+						},
+						"description": "Retrieve a specific book by its ID.\n\n**Safe:** Yes  \n**Idempotent:** Yes  \n**Expected Status:** 200 OK / 404 Not Found"
+					},
+					"response": []
+				},
+				{
+					"name": "Create New Book",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"The Great Gatsby\",\n    \"author\": \"F. Scott Fitzgerald\",\n    \"year\": 1925,\n    \"isbn\": \"978-0-7432-7356-5\",\n    \"genre\": \"Fiction\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/books",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"books"
+							]
+						},
+						"description": "Create a new book in the collection.\n\n**Required fields:** title, author  \n**Safe:** No  \n**Idempotent:** No  \n**Expected Status:** 201 Created / 400 Bad Request"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Book",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"year\": 1961,\n    \"genre\": \"Southern Gothic\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/books/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"books",
+								"1"
+							]
+						},
+						"description": "Update an existing book by its ID.\n\n**Safe:** No  \n**Idempotent:** Yes  \n**Expected Status:** 200 OK / 404 Not Found / 400 Bad Request"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Book",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/books/4",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"books",
+								"4"
+							]
+						},
+						"description": "Delete a book by its ID.\n\n**Safe:** No  \n**Idempotent:** Yes  \n**Expected Status:** 200 OK / 404 Not Found"
+					},
+					"response": []
+				}
+			],
+			"description": "All endpoints for managing books resource"
+		},
+		{
+			"name": "Authors",
+			"item": [
+				{
+					"name": "Get All Authors",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/authors",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"authors"
+							]
+						},
+						"description": "Retrieve all authors from the collection.\n\n**Safe:** Yes  \n**Idempotent:** Yes  \n**Expected Status:** 200 OK"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Author by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/authors/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"authors",
+								"1"
+							]
+						},
+						"description": "Retrieve a specific author by their ID.\n\n**Safe:** Yes  \n**Idempotent:** Yes  \n**Expected Status:** 200 OK / 404 Not Found"
+					},
+					"response": []
+				},
+				{
+					"name": "Create New Author",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Ernest Hemingway\",\n    \"birthYear\": 1899,\n    \"nationality\": \"American\",\n    \"biography\": \"Ernest Miller Hemingway was an American novelist, short-story writer, and journalist.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/authors",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"authors"
+							]
+						},
+						"description": "Create a new author in the collection.\n\n**Required fields:** name  \n**Safe:** No  \n**Idempotent:** No  \n**Expected Status:** 201 Created / 400 Bad Request"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Author",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"biography\": \"Updated biography with more details about the author's life and works.\",\n    \"nationality\": \"British-American\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/authors/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"authors",
+								"1"
+							]
+						},
+						"description": "Update an existing author by their ID.\n\n**Safe:** No  \n**Idempotent:** Yes  \n**Expected Status:** 200 OK / 404 Not Found / 400 Bad Request"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Author",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/authors/4",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"authors",
+								"4"
+							]
+						},
+						"description": "Delete an author by their ID.\n\n**Safe:** No  \n**Idempotent:** Yes  \n**Expected Status:** 200 OK / 404 Not Found"
+					},
+					"response": []
+				}
+			],
+			"description": "All endpoints for managing authors resource"
+		},
+		{
+			"name": "Error Cases",
+			"item": [
+				{
+					"name": "404 - Invalid Route",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/invalid",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"invalid"
+							]
+						},
+						"description": "Test 404 response for non-existent route.\n\n**Expected Status:** 404 Not Found"
+					},
+					"response": []
+				},
+				{
+					"name": "404 - Book Not Found",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/books/999",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"books",
+								"999"
+							]
+						},
+						"description": "Test 404 response for non-existent book.\n\n**Expected Status:** 404 Not Found"
+					},
+					"response": []
+				},
+				{
+					"name": "400 - Invalid JSON",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ invalid json }"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/books",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"books"
+							]
+						},
+						"description": "Test 400 response for malformed JSON.\n\n**Expected Status:** 400 Bad Request"
+					},
+					"response": []
+				},
+				{
+					"name": "400 - Missing Required Fields",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"year\": 2020\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/books",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"books"
+							]
+						},
+						"description": "Test 400 response when required fields (title, author) are missing.\n\n**Expected Status:** 400 Bad Request"
+					},
+					"response": []
+				}
+			],
+			"description": "Test various error scenarios"
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	]
+}
