@@ -2,7 +2,7 @@ const crypto = require('node:crypto');
 const jwt = require('jsonwebtoken');
 const { getUserById, getAdmins } = require('./dataStore');
 
-const jwtSecret = process.env.JWT_SECRET || 'dev-secret-change-me';
+const jwtSecret = process.env.JWT_SECRET || 'ASDFAGQ23423';
 
 function hashPassword(password) {
     return new Promise((resolve, reject) => {
