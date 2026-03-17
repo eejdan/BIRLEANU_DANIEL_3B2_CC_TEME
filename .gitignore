@@ -1,1 +1,5 @@
 tema1/data/*
+*.env
+*.env.*
+**/data/**
+**/node_modules/**

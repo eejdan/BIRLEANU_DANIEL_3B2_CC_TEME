@@ -1,0 +1,27 @@
+{
+  "name": "t2bk",
+  "version": "1.0.0",
+  "description": "Calendar and activity backend API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "test": "jest --runInBand",
+    "admin:add": "node scripts/admins.js add",
+    "admin:remove": "node scripts/admins.js remove",
+    "admin:list": "node scripts/admins.js list"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
+  }
+}
