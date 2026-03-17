@@ -7,7 +7,8 @@ const {
     getEventsForDate,
     findFirstAndNextEvents,
     parseDurationSeconds,
-    buildReadingRecommendation
+    buildReadingRecommendation,
+    buildDailyTravelLegs
 } = require('../src/helpers');
 
 describe('helpers module', () => {
@@ -99,5 +100,40 @@ describe('helpers module', () => {
         );
 
         expect(withEvent.suggestedActivity.startDateTime).toBe('2026-03-20T11:15:00.000Z');
+    });
+
+    test('buildDailyTravelLegs returns only upcoming departures', () => {
+        const now = Date.now();
+        const fiveMinutesFromNow = new Date(now + 5 * 60 * 1000);
+        const fifteenMinutesFromNow = new Date(now + 15 * 60 * 1000);
+        const thirtyMinutesFromNow = new Date(now + 30 * 60 * 1000);
+        const ninetyMinutesFromNow = new Date(now + 90 * 60 * 1000);
+
+        const events = [
+            {
+                id: 'soon',
+                title: 'Soon Event',
+                startDateTime: fiveMinutesFromNow.toISOString(),
+                endDateTime: fifteenMinutesFromNow.toISOString(),
+                lat: 44.43,
+                lng: 26.1
+            },
+            {
+                id: 'later',
+                title: 'Later Event',
+                startDateTime: thirtyMinutesFromNow.toISOString(),
+                endDateTime: ninetyMinutesFromNow.toISOString(),
+                lat: 44.44,
+                lng: 26.11
+            }
+        ];
+
+        const legs = buildDailyTravelLegs({ lat: 44.42, lng: 26.09 }, events);
+
+        expect(legs.length).toBeGreaterThan(0);
+        expect(legs.every((leg) => new Date(leg.departureTime).getTime() > now)).toBe(true);
+        expect(legs.some((leg) => leg.id === 'home-to-soon')).toBe(false);
+        expect(legs.some((leg) => leg.id === 'soon-to-later')).toBe(true);
+        expect(legs.some((leg) => leg.id === 'later-to-home')).toBe(true);
     });
 });

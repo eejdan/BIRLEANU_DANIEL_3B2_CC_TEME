@@ -121,6 +121,75 @@ function buildReadingRecommendation(booksPayload, events, date) {
     };
 }
 
+function buildDailyTravelLegs(home, events) {
+    if (!home || typeof home.lat !== 'number' || typeof home.lng !== 'number') {
+        return [];
+    }
+
+    const datedEvents = events
+        .filter((event) => typeof event.lat === 'number' && typeof event.lng === 'number')
+        .slice()
+        .sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
+
+    if (datedEvents.length === 0) {
+        return [];
+    }
+
+    const legs = [];
+    const firstEvent = datedEvents[0];
+    const firstDeparture = new Date(new Date(firstEvent.startDateTime).getTime() - 45 * 60 * 1000).toISOString();
+
+    legs.push({
+        id: `home-to-${firstEvent.id}`,
+        fromType: 'home',
+        toType: 'event',
+        fromEventId: null,
+        toEventId: firstEvent.id,
+        fromLabel: 'Home',
+        toLabel: firstEvent.title,
+        departureTime: firstDeparture,
+        from: { lat: home.lat, lng: home.lng },
+        to: { lat: firstEvent.lat, lng: firstEvent.lng }
+    });
+
+    for (let index = 0; index < datedEvents.length - 1; index += 1) {
+        const current = datedEvents[index];
+        const next = datedEvents[index + 1];
+        legs.push({
+            id: `${current.id}-to-${next.id}`,
+            fromType: 'event',
+            toType: 'event',
+            fromEventId: current.id,
+            toEventId: next.id,
+            fromLabel: current.title,
+            toLabel: next.title,
+            departureTime: current.endDateTime,
+            from: { lat: current.lat, lng: current.lng },
+            to: { lat: next.lat, lng: next.lng }
+        });
+    }
+
+    const lastEvent = datedEvents[datedEvents.length - 1];
+    legs.push({
+        id: `${lastEvent.id}-to-home`,
+        fromType: 'event',
+        toType: 'home',
+        fromEventId: lastEvent.id,
+        toEventId: null,
+        fromLabel: lastEvent.title,
+        toLabel: 'Home',
+        departureTime: lastEvent.endDateTime,
+        from: { lat: lastEvent.lat, lng: lastEvent.lng },
+        to: { lat: home.lat, lng: home.lng }
+    });
+
+    const nowTimestamp = Date.now();
+    return legs.filter((leg) => {
+        const departureTimestamp = new Date(leg.departureTime).getTime();
+        return Number.isFinite(departureTimestamp) && departureTimestamp > nowTimestamp;
+    });
+}
+
 module.exports = {
     validateEmail,
     isIsoDateTime,
@@ -130,5 +199,6 @@ module.exports = {
     getEventsForDate,
     findFirstAndNextEvents,
     parseDurationSeconds,
-    buildReadingRecommendation
+    buildReadingRecommendation,
+    buildDailyTravelLegs
 };

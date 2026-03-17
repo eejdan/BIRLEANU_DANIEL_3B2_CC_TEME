@@ -29,8 +29,8 @@ const {
     parseDurationSeconds,
     getDayName,
     getEventsForDate,
-    findFirstAndNextEvents,
-    buildReadingRecommendation
+    buildReadingRecommendation,
+    buildDailyTravelLegs
 } = require('./helpers');
 const {
     sendPasswordResetEmail,
@@ -401,7 +401,7 @@ app.delete('/api/events/:eventId', authenticate, (req, res) => {
 
 app.get('/api/commute-estimates', authenticate, async (req, res, next) => {
     try {
-        const { date, currentEventId } = req.query;
+        const { date } = req.query;
         if (!parseDateOnly(date)) {
             return res.status(400).json({ success: false, message: 'date query must be YYYY-MM-DD.' });
         }
@@ -411,40 +411,40 @@ app.get('/api/commute-estimates', authenticate, async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Home location not set.' });
         }
 
-        const events = getEventsForDate(data.events, date)
-            .filter((item) => typeof item.lat === 'number' && typeof item.lng === 'number')
-            .sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
+        const events = getEventsForDate(data.events, date);
+        const legs = buildDailyTravelLegs(data.home, events);
 
-        if (events.length === 0) {
-            return res.status(200).json({ success: true, date, firstActivity: null, nextFromCurrent: null });
+        if (legs.length === 0) {
+            return res.status(200).json({ success: true, date, segments: [], firstActivity: null, nextFromCurrent: null });
         }
 
-        const first = events[0];
-        const firstByCar = await computeRouteEstimate(data.home, first, 'DRIVE');
-        const firstByWalk = await computeRouteEstimate(data.home, first, 'WALK');
+        const segments = await Promise.all(legs.map(async (leg) => ({
+            id: leg.id,
+            fromType: leg.fromType,
+            toType: leg.toType,
+            fromLabel: leg.fromLabel,
+            toLabel: leg.toLabel,
+            fromEventId: leg.fromEventId,
+            toEventId: leg.toEventId,
+            departureTime: leg.departureTime,
+            car: await computeRouteEstimate(leg.from, leg.to, 'DRIVE', leg.departureTime),
+            walk: await computeRouteEstimate(leg.from, leg.to, 'WALK', leg.departureTime)
+        })));
 
-        let nextFromCurrent = null;
-        if (currentEventId) {
-            const pair = findFirstAndNextEvents(events, currentEventId);
-            if (pair && pair.current && pair.next) {
-                nextFromCurrent = {
-                    fromEventId: pair.current.id,
-                    toEventId: pair.next.id,
-                    car: await computeRouteEstimate(pair.current, pair.next, 'DRIVE'),
-                    walk: await computeRouteEstimate(pair.current, pair.next, 'WALK')
-                };
-            }
-        }
+        const firstActivitySegment = segments.find((segment) => segment.fromType === 'home' && segment.toType === 'event') || null;
 
         return res.status(200).json({
             success: true,
             date,
-            firstActivity: {
-                eventId: first.id,
-                car: firstByCar,
-                walk: firstByWalk
-            },
-            nextFromCurrent
+            segments,
+            firstActivity: firstActivitySegment
+                ? {
+                    eventId: firstActivitySegment.toEventId,
+                    car: firstActivitySegment.car,
+                    walk: firstActivitySegment.walk
+                }
+                : null,
+            nextFromCurrent: null
         });
     } catch (error) {
         return next(error);
@@ -463,8 +463,26 @@ app.get('/api/weather', authenticate, async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Home location not set.' });
         }
 
-        const weather = await getWeatherForecast(data.home.lat, data.home.lng, date);
-        return res.status(200).json({ success: true, date, weather });
+        const events = getEventsForDate(data.events, date);
+        const legs = buildDailyTravelLegs(data.home, events);
+
+        if (legs.length === 0) {
+            return res.status(200).json({ success: true, date, segments: [], weather: null });
+        }
+
+        const segments = await Promise.all(legs.map(async (leg) => ({
+            id: leg.id,
+            fromType: leg.fromType,
+            toType: leg.toType,
+            fromLabel: leg.fromLabel,
+            toLabel: leg.toLabel,
+            fromEventId: leg.fromEventId,
+            toEventId: leg.toEventId,
+            departureTime: leg.departureTime,
+            weather: await getWeatherForecast(leg.from.lat, leg.from.lng, date)
+        })));
+
+        return res.status(200).json({ success: true, date, segments, weather: segments[0]?.weather || null });
     } catch (error) {
         return next(error);
     }
@@ -472,7 +490,7 @@ app.get('/api/weather', authenticate, async (req, res, next) => {
 
 app.get('/api/walk-prediction', authenticate, async (req, res, next) => {
     try {
-        const { date, currentEventId } = req.query;
+        const { date } = req.query;
         if (!parseDateOnly(date)) {
             return res.status(400).json({ success: false, message: 'date query must be YYYY-MM-DD.' });
         }
@@ -482,41 +500,48 @@ app.get('/api/walk-prediction', authenticate, async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Home location not set.' });
         }
 
-        const events = getEventsForDate(data.events, date)
-            .filter((item) => typeof item.lat === 'number' && typeof item.lng === 'number')
-            .sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
-        if (events.length === 0) {
-            return res.status(200).json({ success: true, prediction: null, reason: 'No events found.' });
+        const events = getEventsForDate(data.events, date);
+        const legs = buildDailyTravelLegs(data.home, events);
+        if (legs.length === 0) {
+            return res.status(200).json({ success: true, segments: [], prediction: null, reason: 'No events found.' });
         }
 
-        let origin = data.home;
-        let destination = events[0];
-        if (currentEventId) {
-            const pair = findFirstAndNextEvents(events, currentEventId);
-            if (pair && pair.current && pair.next) {
-                origin = pair.current;
-                destination = pair.next;
-            }
-        }
+        const segments = await Promise.all(legs.map(async (leg) => {
+            const route = await computeRouteEstimate(leg.from, leg.to, 'WALK', leg.departureTime);
+            const weather = await getWeatherForecast(leg.from.lat, leg.from.lng, date);
 
-        const walkEstimate = await computeRouteEstimate(origin, destination, 'WALK');
-        const weather = await getWeatherForecast(origin.lat, origin.lng, date);
+            const precipitationProbability = Number(weather.precipitationProbability ?? 0);
+            const walkMinutes = Math.ceil(parseDurationSeconds(route.durationSeconds) / 60);
+            const severe = Boolean(weather.severe);
+            const canWalk = !severe && precipitationProbability <= 40 && walkMinutes <= 45;
 
-        const precipitationProbability = Number(weather.precipitationProbability ?? 0);
-        const walkMinutes = Math.ceil(parseDurationSeconds(walkEstimate.durationSeconds) / 60);
-        const severe = Boolean(weather.severe);
-        const canWalk = !severe && precipitationProbability <= 40 && walkMinutes <= 45;
+            return {
+                id: leg.id,
+                fromType: leg.fromType,
+                toType: leg.toType,
+                fromLabel: leg.fromLabel,
+                toLabel: leg.toLabel,
+                fromEventId: leg.fromEventId,
+                toEventId: leg.toEventId,
+                departureTime: leg.departureTime,
+                canWalk,
+                factors: {
+                    walkMinutes,
+                    precipitationProbability,
+                    severe
+                },
+                route,
+                weather
+            };
+        }));
 
         return res.status(200).json({
             success: true,
-            canWalk,
-            factors: {
-                walkMinutes,
-                precipitationProbability,
-                severe
-            },
-            route: walkEstimate,
-            weather
+            segments,
+            canWalk: segments.every((segment) => segment.canWalk),
+            factors: segments[0]?.factors || null,
+            route: segments[0]?.route || null,
+            weather: segments[0]?.weather || null
         });
     } catch (error) {
         return next(error);

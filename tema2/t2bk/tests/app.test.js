@@ -221,6 +221,19 @@ describe('Schedule and recommendation flows', () => {
             .set('Authorization', `Bearer ${token}`)
             .send({ lat: 44.43, lng: 26.1, address: 'Bucharest' });
 
+        await request(app)
+            .post('/api/events')
+            .set('Authorization', `Bearer ${token}`)
+            .send({
+                title: 'Office',
+                startDateTime: '2026-03-20T09:00:00.000Z',
+                endDateTime: '2026-03-20T10:00:00.000Z',
+                location: 'HQ',
+                recurrence: 'once',
+                lat: 44.45,
+                lng: 26.12
+            });
+
         services.getWeatherForecast.mockRejectedValueOnce(
             Object.assign(new Error('Weather failed'), { type: 'external_api', provider: 'google_weather' })
         );

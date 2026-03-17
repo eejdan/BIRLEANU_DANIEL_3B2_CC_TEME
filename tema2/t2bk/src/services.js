@@ -85,7 +85,7 @@ async function geocodeAddress(address) {
     return { lat: first.lat, lng: first.lng };
 }
 
-async function computeRouteEstimate(origin, destination, travelMode) {
+async function computeRouteEstimate(origin, destination, travelMode, departureTime) {
     if (!googleApiKey) {
         const error = new Error('GOOGLE_API_KEY is missing.');
         error.statusCode = 500;
@@ -118,6 +118,7 @@ async function computeRouteEstimate(origin, destination, travelMode) {
             },
             travelMode,
             routingPreference: travelMode === 'DRIVE' ? 'TRAFFIC_AWARE' : undefined,
+            departureTime: departureTime || undefined,
             languageCode: 'en-US',
             units: 'METRIC'
         })

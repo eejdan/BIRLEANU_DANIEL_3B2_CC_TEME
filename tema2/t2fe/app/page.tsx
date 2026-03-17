@@ -13,21 +13,53 @@ type MePayload = {
   };
 };
 
+type RouteEstimate = {
+  distanceMeters?: number;
+  durationSeconds?: string | number;
+};
+
+type SegmentBase = {
+  id: string;
+  fromType: "home" | "event";
+  toType: "event" | "home";
+  fromLabel: string;
+  toLabel: string;
+  fromEventId?: string | null;
+  toEventId?: string | null;
+  departureTime: string;
+};
+
 type CommutePayload = {
+  segments?: Array<
+    SegmentBase & {
+      car: RouteEstimate;
+      walk: RouteEstimate;
+    }
+  >;
   firstActivity?: {
     eventId: string;
-    car: { distanceMeters?: number; durationSeconds?: string | number };
-    walk: { distanceMeters?: number; durationSeconds?: string | number };
+    car: RouteEstimate;
+    walk: RouteEstimate;
   } | null;
   nextFromCurrent?: {
     fromEventId: string;
     toEventId: string;
-    car: { distanceMeters?: number; durationSeconds?: string | number };
-    walk: { distanceMeters?: number; durationSeconds?: string | number };
+    car: RouteEstimate;
+    walk: RouteEstimate;
   } | null;
 };
 
 type WeatherPayload = {
+  segments?: Array<
+    SegmentBase & {
+      weather?: {
+        summary?: string;
+        temperatureC?: number | null;
+        precipitationProbability?: number;
+        severe?: boolean;
+      };
+    }
+  >;
   weather?: {
     summary?: string;
     temperatureC?: number | null;
@@ -37,6 +69,23 @@ type WeatherPayload = {
 };
 
 type WalkPredictionPayload = {
+  segments?: Array<
+    SegmentBase & {
+      canWalk?: boolean;
+      factors?: {
+        walkMinutes?: number;
+        precipitationProbability?: number;
+        severe?: boolean;
+      };
+      route?: RouteEstimate;
+      weather?: {
+        summary?: string;
+        temperatureC?: number | null;
+        precipitationProbability?: number;
+        severe?: boolean;
+      };
+    }
+  >;
   canWalk?: boolean;
   factors?: {
     walkMinutes?: number;
@@ -137,7 +186,6 @@ export default function Home() {
   const [commuteData, setCommuteData] = useState<CommutePayload | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherPayload | null>(null);
   const [walkPrediction, setWalkPrediction] = useState<WalkPredictionPayload | null>(null);
-  const [mobilityContextLabel, setMobilityContextLabel] = useState<string>("");
 
   const [passwordResetRequest, setPasswordResetRequest] = useState({ email: "" });
   const [passwordResetConfirm, setPasswordResetConfirm] = useState({ token: "", newPassword: "" });
@@ -419,53 +467,14 @@ export default function Home() {
     });
   }
 
-  async function resolveMobilityContext(date: string, activeToken: string) {
-    const response = await apiRequest<{ events: EventItem[] }>(`/api/events?date=${date}`, {}, activeToken);
-    const dateEvents = [...(response.events || [])].sort(
-      (first, second) => new Date(first.startDateTime).getTime() - new Date(second.startDateTime).getTime(),
-    );
-
-    const isToday = date === new Date().toISOString().slice(0, 10);
-    const nowTimestamp = Date.now();
-    const currentEvent =
-      isToday
-        ? dateEvents.find((eventItem) => {
-            const start = new Date(eventItem.startDateTime).getTime();
-            const end = new Date(eventItem.endDateTime).getTime();
-            return nowTimestamp >= start && nowTimestamp <= end;
-          }) || null
-        : null;
-
-    if (currentEvent) {
-      const nextEvent =
-        dateEvents.find(
-          (eventItem) => new Date(eventItem.startDateTime).getTime() > new Date(currentEvent.endDateTime).getTime(),
-        ) || null;
-      const label = nextEvent
-        ? `Using current event: ${currentEvent.title} → next: ${nextEvent.title}`
-        : `Using current event: ${currentEvent.title} (no next event found)`;
-      return { currentEventId: currentEvent.id, label };
-    }
-
-    if (dateEvents.length > 0) {
-      return { currentEventId: null, label: `Using home → first event: ${dateEvents[0].title}` };
-    }
-
-    return { currentEventId: null, label: "No events found for selected date." };
-  }
-
   async function handleCommute(event: FormEvent) {
     event.preventDefault();
     if (!token || !commuteDate) return;
 
     await withLoading(async () => {
       try {
-        const context = await resolveMobilityContext(commuteDate, token);
-        const query = new URLSearchParams({ date: commuteDate });
-        if (context.currentEventId) query.set("currentEventId", context.currentEventId);
-        const response = await apiRequest<CommutePayload>(`/api/commute-estimates?${query.toString()}`, {}, token);
+        const response = await apiRequest<CommutePayload>(`/api/commute-estimates?date=${commuteDate}`, {}, token);
         setCommuteData(response);
-        setMobilityContextLabel(context.label);
       } catch (error) {
         showError(error);
       }
@@ -492,12 +501,8 @@ export default function Home() {
 
     await withLoading(async () => {
       try {
-        const context = await resolveMobilityContext(commuteDate, token);
-        const query = new URLSearchParams({ date: commuteDate });
-        if (context.currentEventId) query.set("currentEventId", context.currentEventId);
-        const response = await apiRequest<WalkPredictionPayload>(`/api/walk-prediction?${query.toString()}`, {}, token);
+        const response = await apiRequest<WalkPredictionPayload>(`/api/walk-prediction?date=${commuteDate}`, {}, token);
         setWalkPrediction(response);
-        setMobilityContextLabel(context.label);
       } catch (error) {
         showError(error);
       }
@@ -883,50 +888,90 @@ export default function Home() {
                   <h2>Commute estimates</h2>
                   <input type="date" value={commuteDate} onChange={(e) => setCommuteDate(e.target.value)} />
                   <button disabled={loading}>Get commute</button>
-                  {mobilityContextLabel ? <p className="hint">{mobilityContextLabel}</p> : null}
-                  {commuteData?.firstActivity ? (
-                    <div className="result-block">
-                      <h3>From home to first activity</h3>
-                      <p>By car: {formatDuration(commuteData.firstActivity.car?.durationSeconds)} · {formatDistance(commuteData.firstActivity.car?.distanceMeters)}</p>
-                      <p>Walking: {formatDuration(commuteData.firstActivity.walk?.durationSeconds)} · {formatDistance(commuteData.firstActivity.walk?.distanceMeters)}</p>
+                  {!commuteData?.segments?.length && commuteData ? <p className="hint">No travel segments for this date.</p> : null}
+                  {commuteData?.segments?.map((segment) => (
+                    <div className="result-block" key={`commute-${segment.id}`}>
+                      <h3>
+                        {segment.fromLabel} → {segment.toLabel}
+                      </h3>
+                      <p>
+                        <strong>Departure:</strong> {formatEventDate(segment.departureTime)}
+                      </p>
+                      <p>
+                        By car: {formatDuration(segment.car?.durationSeconds)} · {formatDistance(segment.car?.distanceMeters)}
+                      </p>
+                      <p>
+                        Walking: {formatDuration(segment.walk?.durationSeconds)} · {formatDistance(segment.walk?.distanceMeters)}
+                      </p>
                     </div>
-                  ) : null}
-                  {commuteData?.nextFromCurrent ? (
-                    <div className="result-block">
-                      <h3>Current → next activity</h3>
-                      <p>By car: {formatDuration(commuteData.nextFromCurrent.car?.durationSeconds)} · {formatDistance(commuteData.nextFromCurrent.car?.distanceMeters)}</p>
-                      <p>Walking: {formatDuration(commuteData.nextFromCurrent.walk?.durationSeconds)} · {formatDistance(commuteData.nextFromCurrent.walk?.distanceMeters)}</p>
-                    </div>
-                  ) : null}
+                  ))}
                 </form>
 
                 <form className="card" onSubmit={handleWeather}>
                   <h2>Weather forecast</h2>
                   <input type="date" value={commuteDate} onChange={(e) => setCommuteDate(e.target.value)} />
                   <button disabled={loading}>Get weather</button>
-                  {weatherData?.weather ? (
-                    <div className="result-block">
-                      <p><strong>Summary:</strong> {weatherData.weather.summary || "N/A"}</p>
-                      <p><strong>Temperature:</strong> {typeof weatherData.weather.temperatureC === "number" ? `${weatherData.weather.temperatureC}°C` : "N/A"}</p>
-                      <p><strong>Rain chance:</strong> {weatherData.weather.precipitationProbability ?? 0}%</p>
-                      <p><strong>Severe:</strong> {weatherData.weather.severe ? "Yes" : "No"}</p>
+                  {!weatherData?.segments?.length && weatherData ? <p className="hint">No travel segments for this date.</p> : null}
+                  {weatherData?.segments?.map((segment) => (
+                    <div className="result-block" key={`weather-${segment.id}`}>
+                      <h3>
+                        {segment.fromLabel} → {segment.toLabel}
+                      </h3>
+                      <p>
+                        <strong>Departure:</strong> {formatEventDate(segment.departureTime)}
+                      </p>
+                      <p>
+                        <strong>Summary:</strong> {segment.weather?.summary || "N/A"}
+                      </p>
+                      <p>
+                        <strong>Temperature:</strong>{" "}
+                        {typeof segment.weather?.temperatureC === "number" ? `${segment.weather.temperatureC}°C` : "N/A"}
+                      </p>
+                      <p>
+                        <strong>Rain chance:</strong> {segment.weather?.precipitationProbability ?? 0}%
+                      </p>
+                      <p>
+                        <strong>Severe:</strong> {segment.weather?.severe ? "Yes" : "No"}
+                      </p>
                     </div>
-                  ) : null}
+                  ))}
                 </form>
 
                 <form className="card" onSubmit={handleWalkPrediction}>
                   <h2>Walk prediction</h2>
                   <input type="date" value={commuteDate} onChange={(e) => setCommuteDate(e.target.value)} />
                   <button disabled={loading}>Can I walk?</button>
-                  {mobilityContextLabel ? <p className="hint">{mobilityContextLabel}</p> : null}
                   {typeof walkPrediction?.canWalk === "boolean" ? (
-                    <div className="result-block">
-                      <p><strong>Recommendation:</strong> {walkPrediction.canWalk ? "You can walk" : "Better not walk"}</p>
-                      <p><strong>Walk time:</strong> {walkPrediction.factors?.walkMinutes ?? "N/A"} min</p>
-                      <p><strong>Rain chance:</strong> {walkPrediction.factors?.precipitationProbability ?? "N/A"}%</p>
-                      <p><strong>Severe weather:</strong> {walkPrediction.factors?.severe ? "Yes" : "No"}</p>
-                    </div>
+                    <p className="hint">
+                      Day summary: {walkPrediction.canWalk ? "all segments are walkable" : "at least one segment is not walkable"}.
+                    </p>
                   ) : null}
+                  {!walkPrediction?.segments?.length && walkPrediction ? <p className="hint">No travel segments for this date.</p> : null}
+                  {walkPrediction?.segments?.map((segment) => (
+                    <div className="result-block" key={`walk-${segment.id}`}>
+                      <h3>
+                        {segment.fromLabel} → {segment.toLabel}
+                      </h3>
+                      <p>
+                        <strong>Departure:</strong> {formatEventDate(segment.departureTime)}
+                      </p>
+                      <p>
+                        <strong>Recommendation:</strong> {segment.canWalk ? "You can walk" : "Better not walk"}
+                      </p>
+                      <p>
+                        <strong>Walk time:</strong> {segment.factors?.walkMinutes ?? "N/A"} min
+                      </p>
+                      <p>
+                        <strong>Distance:</strong> {formatDistance(segment.route?.distanceMeters)}
+                      </p>
+                      <p>
+                        <strong>Rain chance:</strong> {segment.factors?.precipitationProbability ?? "N/A"}%
+                      </p>
+                      <p>
+                        <strong>Severe weather:</strong> {segment.factors?.severe ? "Yes" : "No"}
+                      </p>
+                    </div>
+                  ))}
                 </form>
               </section>
             ) : null}
