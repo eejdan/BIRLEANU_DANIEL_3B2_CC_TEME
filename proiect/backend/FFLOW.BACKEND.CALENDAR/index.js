@@ -1,5 +1,26 @@
-require('dotenv').config();
-const mongoose = require('mongoose');
-// const express = require('express');
+import 'dotenv/config';
 
-// const app = express();
+import connectDB from './config/db.js';
+import createApp from './app.js';
+
+const port = Number(process.env.PORT) || 3000;
+
+async function startServer() {
+    await connectDB();
+
+    const app = createApp();
+    return app.listen(port, () => {
+        console.log(`Calendar service listening on port ${port}`);
+    });
+}
+
+const isDirectRun = process.argv[1] && new URL(`file://${process.argv[1]}`).href === import.meta.url;
+
+if (isDirectRun) {
+    startServer().catch((error) => {
+        console.error('Failed to start calendar service', error);
+        process.exit(1);
+    });
+}
+
+export default startServer;
