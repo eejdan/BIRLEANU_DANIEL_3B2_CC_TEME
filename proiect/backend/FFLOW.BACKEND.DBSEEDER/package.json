@@ -1,0 +1,18 @@
+{
+  "name": "fflow.backend.dbseeder",
+  "version": "1.0.0",
+  "description": "Development database wipe/seed service for FocusFlow",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongoose": "^9.6.2"
+  }
+}

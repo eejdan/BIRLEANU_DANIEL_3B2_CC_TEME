@@ -1,0 +1,41 @@
+rules:
+  - description: Auth service
+    routes:
+      - match:
+          pathSeparatedPrefix: /api/auth
+        action:
+          prefixRewrite: /auth
+    targets:
+      - containerApp: ca-fflow-auth
+  - description: Calendar service
+    routes:
+      - match:
+          pathSeparatedPrefix: /api/calendar
+        action:
+          prefixRewrite: /calendar
+    targets:
+      - containerApp: ca-fflow-calendar
+  - description: Recommendations service
+    routes:
+      - match:
+          pathSeparatedPrefix: /api/recommendations
+        action:
+          prefixRewrite: /recommendations
+    targets:
+      - containerApp: ca-fflow-recommendations
+  - description: Billing service
+    routes:
+      - match:
+          pathSeparatedPrefix: /api/billing
+        action:
+          prefixRewrite: /billing
+    targets:
+      - containerApp: ca-fflow-billing
+  - description: Advertising service
+    routes:
+      - match:
+          pathSeparatedPrefix: /api/advertising
+        action:
+          prefixRewrite: /advertising
+    targets:
+      - containerApp: ca-fflow-advertising

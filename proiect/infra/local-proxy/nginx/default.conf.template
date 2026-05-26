@@ -1,0 +1,52 @@
+server {
+    listen 80;
+    server_name ${LOCAL_DOMAIN};
+
+    client_max_body_size 10m;
+
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+
+    location = /api {
+        return 301 /api/;
+    }
+
+    location /api/auth/ {
+        proxy_pass http://${AUTH_UPSTREAM}/auth/;
+    }
+
+    location /api/calendar/ {
+        proxy_pass http://${CALENDAR_UPSTREAM}/calendar/;
+    }
+
+    location /api/recommendations/ {
+        proxy_pass http://${RECOMMENDATIONS_UPSTREAM}/recommendations/;
+    }
+
+    location /api/billing/ {
+        proxy_pass http://${BILLING_UPSTREAM}/billing/;
+    }
+
+    location /api/advertising/ {
+        proxy_pass http://${ADVERTISING_UPSTREAM}/advertising/;
+    }
+
+    location /api {
+        return 404;
+    }
+
+    location / {
+        proxy_pass http://${FRONTEND_UPSTREAM};
+    }
+}
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
