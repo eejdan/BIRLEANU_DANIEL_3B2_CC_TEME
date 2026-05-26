@@ -1,4 +1,5 @@
 import express from 'express';
+import createCorsMiddleware from '../../shared/cors.js';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandlers.js';
 import authRouter from './routes/authRouter.js';
@@ -6,6 +7,7 @@ import authRouter from './routes/authRouter.js';
 function createApp() {
     const app = express();
 
+    app.use(createCorsMiddleware());
     app.use(express.json());
 
     app.get('/health', (req, res) => {

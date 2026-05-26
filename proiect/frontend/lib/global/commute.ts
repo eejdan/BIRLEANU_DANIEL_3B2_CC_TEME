@@ -30,6 +30,9 @@ export interface CommuteCardData {
   id: string;
   fromEventId: string;
   toEventId: string;
+  toStartTime?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   canWalk: boolean | null;
   walkingMinutes: number | null;
   drivingMinutes: number | null;
@@ -58,6 +61,9 @@ export function buildCommuteCards(events: EventItem[]): CommuteCardData[] {
           id: `${fromEvent.id}-${toEvent.id}`,
           fromEventId: fromEvent.id,
           toEventId: toEvent.id,
+          toStartTime: toEvent.startTime,
+          latitude: to?.latitude ?? null,
+          longitude: to?.longitude ?? null,
           canWalk: null,
           walkingMinutes: null,
           drivingMinutes: null
@@ -72,6 +78,9 @@ export function buildCommuteCards(events: EventItem[]): CommuteCardData[] {
         id: `${fromEvent.id}-${toEvent.id}`,
         fromEventId: fromEvent.id,
         toEventId: toEvent.id,
+        toStartTime: toEvent.startTime,
+        latitude: to.latitude,
+        longitude: to.longitude,
         canWalk: walkingMinutes <= 35,
         walkingMinutes,
         drivingMinutes

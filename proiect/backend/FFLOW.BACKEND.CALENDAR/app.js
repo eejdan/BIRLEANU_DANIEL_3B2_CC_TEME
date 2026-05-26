@@ -1,4 +1,5 @@
 import express from 'express';
+import createCorsMiddleware from '../../shared/cors.js';
 
 import authenticateUser from './middleware/authenticateUser.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandlers.js';
@@ -11,6 +12,7 @@ import notificationsRouter from './routes/notificationsRouter.js';
 function createApp() {
     const app = express();
 
+    app.use(createCorsMiddleware());
     app.use(express.json());
 
     app.get('/health', (req, res) => {

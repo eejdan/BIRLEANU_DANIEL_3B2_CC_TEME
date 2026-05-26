@@ -5,6 +5,7 @@ import { Fragment } from 'react';
 
 import { calendarApi, recommendationsApi } from '@/api/services';
 import { useAuth } from '@/context/AuthContext';
+import { usePremium } from '@/context/PremiumContext';
 import type { ArrangedTask, EventItem, TaskItem } from '@/types';
 import { buildCommuteCards } from '../global/commute';
 import { CommuteCard, EventCard, TaskCard } from '../global/cards';
@@ -20,8 +21,40 @@ function formatTimeFrame(startTime?: string, endTime?: string) {
   return `${new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
+function fallbackArrange(date: string, tasks: TaskItem[], events: EventItem[]) {
+  const sortedEvents = [...events].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  const arranged: ArrangedTask[] = [];
+  let cursor = new Date(`${date}T08:00:00.000Z`);
+
+  for (const task of tasks) {
+    const duration = (task.estimatedMinutes ?? task.estimatedDurationMinutes ?? 30) * 60000;
+    for (const event of sortedEvents) {
+      const eventStart = new Date(event.startTime);
+      if (cursor.getTime() + duration <= eventStart.getTime()) {
+        break;
+      }
+      const eventEnd = new Date(event.endTime);
+      if (cursor < eventEnd) {
+        cursor = new Date(eventEnd);
+      }
+    }
+
+    const suggestedStart = new Date(cursor);
+    const suggestedEnd = new Date(cursor.getTime() + duration);
+    arranged.push({
+      ...task,
+      suggestedStartTime: suggestedStart.toISOString(),
+      suggestedEndTime: suggestedEnd.toISOString()
+    });
+    cursor = new Date(suggestedEnd.getTime() + 15 * 60000);
+  }
+
+  return arranged;
+}
+
 export function SmartScreen() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
+  const { premiumAccess } = usePremium();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [freeTimeResult, setFreeTimeResult] = useState<{ title: string; timeFrame: string; reason: string } | null>(null);
   const [timelineTasks, setTimelineTasks] = useState<ArrangedTask[]>([]);
@@ -92,21 +125,36 @@ export function SmartScreen() {
               const result = await recommendationsApi.autoArrange(token!, { date });
               setTimelineTasks(result.arrangedTasks);
               await loadEvents();
-            } catch (error) {
-              Alert.alert('Auto-arrange failed', error instanceof Error ? error.message : 'Unexpected error');
+            } catch {
+              try {
+                const [tasksForDate, eventItems] = await Promise.all([
+                  calendarApi.listTasks(token!, date),
+                  calendarApi.listEvents(token!, `${date}T00:00:00.000Z`, `${date}T23:59:59.999Z`)
+                ]);
+                setEvents(eventItems);
+                setTimelineTasks(fallbackArrange(date, tasksForDate, eventItems));
+                Alert.alert(
+                  'Fallback timeline',
+                  premiumAccess
+                    ? 'The backend premium arranger rejected the request, so a local fallback timeline was generated.'
+                    : 'Premium auto-arrange is unavailable for this account, so a local fallback timeline was generated.'
+                );
+              } catch (fallbackError) {
+                Alert.alert('Auto-arrange failed', fallbackError instanceof Error ? fallbackError.message : 'Unexpected error');
+              }
             }
           }}
         />
         {timelineTasks.map((task, index) => (
           <Fragment key={task.id}>
-            <TaskCard key={task.id} task={{ ...task, status: task.status ?? 'pending' } as TaskItem} />
-            {events[index] ? <EventCard key={events[index].id} event={events[index]} /> : null}
+            <TaskCard task={{ ...task, status: task.status ?? 'pending' } as TaskItem} />
+            {events[index] ? <EventCard event={events[index]} /> : null}
             {commuteCards[index] ? <CommuteCard commute={commuteCards[index]} /> : null}
           </Fragment>
         ))}
       </SurfaceCard>
 
-      {user?.plan === 'free' ? <UpgradeCard /> : null}
+      <UpgradeCard />
     </ScreenShell>
   );
 }

@@ -1,4 +1,5 @@
 import express from 'express';
+import createCorsMiddleware from '../../shared/cors.js';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandlers.js';
 import billingRouter from './routes/billingRouter.js';
@@ -6,6 +7,7 @@ import billingRouter from './routes/billingRouter.js';
 function createApp() {
     const app = express();
 
+    app.use(createCorsMiddleware());
     app.use(express.json({
         verify(req, res, buffer) {
             req.rawBody = buffer;

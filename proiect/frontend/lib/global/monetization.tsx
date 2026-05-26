@@ -3,6 +3,7 @@ import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
 
 import { advertisingApi, billingApi } from '@/api/services';
 import { useAuth } from '@/context/AuthContext';
+import { usePremium } from '@/context/PremiumContext';
 import type { AdResponse } from '@/types';
 import { FilledButton } from './controls';
 import { SurfaceCard } from './layout';
@@ -10,9 +11,10 @@ import { theme } from '../theme';
 
 export function UpgradeCard() {
   const { token, user } = useAuth();
+  const { premiumAccess } = usePremium();
   const [checkoutBusy, setCheckoutBusy] = useState(false);
 
-  if (!token || user?.plan === 'premium') {
+  if (!token || premiumAccess || user?.plan === 'premium') {
     return null;
   }
 
@@ -42,11 +44,13 @@ export function UpgradeCard() {
 
 export function AdCard() {
   const { token } = useAuth();
+  const { premiumAccess } = usePremium();
   const [ad, setAd] = useState<AdResponse | null>(null);
 
   useEffect(() => {
     async function loadAd() {
-      if (!token) {
+      if (!token || premiumAccess) {
+        setAd(null);
         return;
       }
 
@@ -70,9 +74,9 @@ export function AdCard() {
     }
 
     loadAd();
-  }, [token]);
+  }, [premiumAccess, token]);
 
-  if (!ad) {
+  if (!ad || premiumAccess) {
     return null;
   }
 

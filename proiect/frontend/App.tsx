@@ -8,6 +8,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { PremiumProvider } from '@/context/PremiumContext';
 import { Loader } from '@/components/ui';
 import { AccountScreen } from './lib/account/AccountScreen';
 import { AuthScreen } from './lib/auth/AuthScreen';
@@ -124,10 +125,12 @@ export default function App() {
   const content = (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationContainer theme={navTheme}>
-          <StatusBar style="light" />
-          <RootNavigator />
-        </NavigationContainer>
+        <PremiumProvider>
+          <NavigationContainer theme={navTheme}>
+            <StatusBar style="light" />
+            <RootNavigator />
+          </NavigationContainer>
+        </PremiumProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

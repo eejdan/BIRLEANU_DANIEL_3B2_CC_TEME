@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { EventItem, TaskItem } from '@/types';
 import type { CommuteCardData } from './commute';
+import type { CommuteWeather } from './weather';
 import { SurfaceCard } from './layout';
-import { FilledButton, ButtonRow } from './controls';
 import { theme } from '../theme';
 
 export function TaskCard({
@@ -37,11 +37,23 @@ export function TaskCard({
         </View>
         {task.description ? <Text style={styles.description}>{task.description}</Text> : null}
         {(onHit || onMissed || onDelete) ? (
-          <ButtonRow>
-            {onHit ? <FilledButton label="Hit" onPress={onHit} /> : null}
-            {onMissed ? <FilledButton label="Missed" onPress={onMissed} tone="secondary" /> : null}
-            {onDelete ? <FilledButton label="Delete" onPress={onDelete} tone="ghost" /> : null}
-          </ButtonRow>
+          <View style={styles.actionRow}>
+            {onHit ? (
+              <SmallActionButton
+                label="Hit"
+                onPress={onHit}
+                selected={task.status === 'completed' && !task.failedAt}
+              />
+            ) : null}
+            {onMissed ? (
+              <SmallActionButton
+                label="Missed"
+                onPress={onMissed}
+                selected={Boolean(task.failedAt)}
+              />
+            ) : null}
+            {onDelete ? <SmallActionButton label="Delete" onPress={onDelete} tone="ghost" /> : null}
+          </View>
         ) : null}
       </SurfaceCard>
     </Pressable>
@@ -74,7 +86,7 @@ export function EventCard({ event, onPress }: { event: EventItem; onPress?: () =
   );
 }
 
-export function CommuteCard({ commute }: { commute: CommuteCardData }) {
+export function CommuteCard({ commute, weather }: { commute: CommuteCardData; weather?: CommuteWeather | null }) {
   return (
     <SurfaceCard tone="surface">
       <View style={styles.topRow}>
@@ -84,7 +96,48 @@ export function CommuteCard({ commute }: { commute: CommuteCardData }) {
       <Text style={styles.description}>Can walk: {commute.canWalk == null ? 'Unknown' : commute.canWalk ? 'Yes' : 'No'}</Text>
       <Text style={styles.description}>Walking time: {commute.walkingMinutes == null ? '-' : `${commute.walkingMinutes} min`}</Text>
       <Text style={styles.description}>Driving time: {commute.drivingMinutes == null ? '-' : `${commute.drivingMinutes} min`}</Text>
+      {weather ? (
+        <View style={styles.weatherRow}>
+          <MaterialCommunityIcons name={weather.icon} size={18} color={theme.colors.primary} />
+          <Text style={styles.description}>
+            {weather.label}{weather.temperatureCelsius == null ? '' : ` • ${Math.round(weather.temperatureCelsius)}°C`}
+          </Text>
+        </View>
+      ) : null}
     </SurfaceCard>
+  );
+}
+
+function SmallActionButton({
+  label,
+  onPress,
+  selected = false,
+  tone = 'primary'
+}: {
+  label: string;
+  onPress: () => void;
+  selected?: boolean;
+  tone?: 'primary' | 'ghost';
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.smallButton,
+        tone === 'ghost' ? styles.smallButtonGhost : null,
+        selected ? styles.smallButtonSelected : null
+      ]}
+    >
+      <Text
+        style={[
+          styles.smallButtonText,
+          tone === 'ghost' ? styles.smallButtonTextGhost : null,
+          selected ? styles.smallButtonTextSelected : null
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -135,6 +188,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8
   },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  smallButton: {
+    minHeight: 32,
+    paddingHorizontal: 12,
+    borderRadius: theme.radii.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  smallButtonGhost: {
+    borderColor: theme.colors.outlineSubtle
+  },
+  smallButtonSelected: {
+    backgroundColor: theme.colors.primary
+  },
+  smallButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: theme.colors.primary
+  },
+  smallButtonTextGhost: {
+    color: theme.colors.textMuted
+  },
+  smallButtonTextSelected: {
+    color: theme.colors.onPrimary
+  },
   pill: {
     borderRadius: theme.radii.pill,
     paddingHorizontal: 10,
@@ -157,5 +242,10 @@ const styles = StyleSheet.create({
   },
   pillTextMuted: {
     color: theme.colors.textMuted
+  },
+  weatherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
   }
 });

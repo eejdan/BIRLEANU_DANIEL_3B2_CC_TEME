@@ -11,11 +11,12 @@ import { AdCard, UpgradeCard } from '../global/monetization';
 import { theme } from '../theme';
 
 export function FocusScreen() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const [minutes, setMinutes] = useState('25');
   const [title, setTitle] = useState('Deep focus');
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [plannedSeconds, setPlannedSeconds] = useState(0);
   const [noteText, setNoteText] = useState('');
   const [notes, setNotes] = useState<QuickNote[]>([]);
 
@@ -50,20 +51,21 @@ export function FocusScreen() {
   }, [secondsLeft]);
 
   useEffect(() => {
-    if (secondsLeft === 0 && startedAt && token) {
+    if (secondsLeft === 0 && startedAt && token && plannedSeconds > 0) {
       const endTime = new Date().toISOString();
       calendarApi.createFocusSession(token, {
         title,
         sessionType: 'focus',
         startTime: startedAt,
         endTime,
-        durationSeconds: Number(minutes) * 60,
+        durationSeconds: plannedSeconds,
         source: 'timer'
       }).finally(() => {
         setStartedAt(null);
+        setPlannedSeconds(0);
       });
     }
-  }, [secondsLeft, startedAt, title, token, minutes]);
+  }, [secondsLeft, startedAt, title, token, plannedSeconds]);
 
   return (
     <ScreenShell footer={<AdCard />}>
@@ -88,9 +90,38 @@ export function FocusScreen() {
         <LabeledInput label="Session title" value={title} onChangeText={setTitle} placeholder="Deep work block" />
         <LabeledInput label="Minutes" value={minutes} onChangeText={setMinutes} placeholder="25" />
         <FilledButton label="Start focus session" onPress={() => {
+          const total = Number(minutes) * 60;
           setStartedAt(new Date().toISOString());
-          setSecondsLeft(Number(minutes) * 60);
+          setPlannedSeconds(total);
+          setSecondsLeft(total);
         }} />
+        {startedAt && secondsLeft > 0 ? (
+          <FilledButton
+            label="End session"
+            tone="ghost"
+            onPress={async () => {
+              if (!token || !startedAt) {
+                return;
+              }
+              try {
+                const elapsed = Math.max(60, plannedSeconds - secondsLeft);
+                await calendarApi.createFocusSession(token, {
+                  title,
+                  sessionType: 'focus',
+                  startTime: startedAt,
+                  endTime: new Date().toISOString(),
+                  durationSeconds: elapsed,
+                  source: 'timer'
+                });
+                setStartedAt(null);
+                setSecondsLeft(0);
+                setPlannedSeconds(0);
+              } catch (error) {
+                Alert.alert('Could not end session', error instanceof Error ? error.message : 'Unexpected error');
+              }
+            }}
+          />
+        ) : null}
       </SurfaceCard>
 
       <SurfaceCard tone="raised">
@@ -117,12 +148,14 @@ export function FocusScreen() {
         {notes.map((note) => (
           <SurfaceCard key={note.id} tone="surface">
             <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{note.text}</Text>
-            <Text style={{ color: theme.colors.textMuted, ...theme.typography.body }}>{note.timerLabel ?? `${note.timerDurationSeconds}s`}</Text>
+            <Text style={{ color: theme.colors.textMuted, ...theme.typography.body }}>
+              {(note.date ? new Date(note.date).toISOString().slice(0, 10) : new Date(note.createdAt).toISOString().slice(0, 10))} • {note.timerLabel ?? `${note.timerDurationSeconds}s`}
+            </Text>
           </SurfaceCard>
         ))}
       </SurfaceCard>
 
-      {user?.plan === 'free' ? <UpgradeCard /> : null}
+      <UpgradeCard />
     </ScreenShell>
   );
 }

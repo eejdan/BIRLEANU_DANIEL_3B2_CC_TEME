@@ -12,6 +12,8 @@ import { CommuteCard, EventCard, TaskCard } from '../global/cards';
 import { ButtonRow, FilledButton, NativeMonthField } from '../global/controls';
 import { ScreenShell, BrandHeader, SectionHeader, SurfaceCard } from '../global/layout';
 import { AdCard, UpgradeCard } from '../global/monetization';
+import type { CommuteWeather } from '../global/weather';
+import { fetchCommuteWeather } from '../global/weather';
 
 function monthFromDate(isoDate: string) {
   const [year, month] = isoDate.split('-').map(Number);
@@ -19,7 +21,7 @@ function monthFromDate(isoDate: string) {
 }
 
 export function PlannerScreen() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const navigation = useNavigation<any>();
   const today = new Date().toISOString().slice(0, 10);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -28,6 +30,7 @@ export function PlannerScreen() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [commuteInvalidated, setCommuteInvalidated] = useState(false);
+  const [commuteWeather, setCommuteWeather] = useState<Record<string, CommuteWeather>>({});
 
   const load = useCallback(async () => {
     if (!token) {
@@ -43,6 +46,19 @@ export function PlannerScreen() {
       setTasks(taskItems);
       setEvents(eventItems);
       setCommuteInvalidated(invalidated);
+
+      const commuteEntries = invalidated ? [] : buildCommuteCards(eventItems);
+      const weatherEntries = await Promise.all(commuteEntries.map(async (entry) => {
+        if (entry.latitude == null || entry.longitude == null || !entry.toStartTime) {
+          return [entry.id, null] as const;
+        }
+        try {
+          return [entry.id, await fetchCommuteWeather(entry.latitude, entry.longitude, entry.toStartTime)] as const;
+        } catch {
+          return [entry.id, null] as const;
+        }
+      }));
+      setCommuteWeather(Object.fromEntries(weatherEntries.filter((item): item is readonly [string, CommuteWeather] => Boolean(item[1]))));
     } catch (error) {
       Alert.alert('Planner failed to load', error instanceof Error ? error.message : 'Unexpected error');
     }
@@ -119,12 +135,12 @@ export function PlannerScreen() {
       <SectionHeader title="Events and commutes" />
       {events.map((event, index) => (
         <Fragment key={event.id}>
-          <EventCard key={event.id} event={event} onPress={() => navigation.navigate('EventEditor', { mode: 'edit', event })} />
-          {!commuteInvalidated && commuteCards[index] ? <CommuteCard commute={commuteCards[index]} /> : null}
+          <EventCard event={event} onPress={() => navigation.navigate('EventEditor', { mode: 'edit', event })} />
+          {!commuteInvalidated && commuteCards[index] ? <CommuteCard commute={commuteCards[index]} weather={commuteWeather[commuteCards[index].id]} /> : null}
         </Fragment>
       ))}
 
-      {user?.plan === 'free' ? <UpgradeCard /> : null}
+      <UpgradeCard />
     </ScreenShell>
   );
 }

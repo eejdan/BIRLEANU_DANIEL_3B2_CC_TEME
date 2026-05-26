@@ -3,14 +3,16 @@ import { useCallback, useState } from 'react';
 import { Alert, Text } from 'react-native';
 import { Fragment } from 'react';
 
-import { calendarApi, recommendationsApi } from '@/api/services';
+import { calendarApi } from '@/api/services';
 import { useAuth } from '@/context/AuthContext';
-import type { AnalyticsSummary, EventItem, TaskItem, WakeupScheduleResponse } from '@/types';
+import type { EventItem, TaskItem, WakeupScheduleResponse } from '@/types';
 import { buildCommuteCards, isTodayCommuteInvalidated, markTodayCommuteInvalidated } from '../global/commute';
 import { CommuteCard, EventCard, TaskCard } from '../global/cards';
 import { ScreenShell, BrandHeader, SectionHeader, SurfaceCard } from '../global/layout';
 import { AdCard, UpgradeCard } from '../global/monetization';
 import { theme } from '../theme';
+import type { CommuteWeather } from '../global/weather';
+import { fetchCommuteWeather } from '../global/weather';
 
 function todayRange() {
   const today = new Date().toISOString().slice(0, 10);
@@ -39,14 +41,46 @@ function tomorrowWakeup(schedule: WakeupScheduleResponse | null) {
   return source[weekdays[tomorrow.getDay()]] ?? 'Not set';
 }
 
+async function buildWeeklyPulse(token: string) {
+  const today = new Date();
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(today);
+    day.setDate(today.getDate() - index);
+    return day.toISOString().slice(0, 10);
+  }).reverse();
+
+  const taskDays = await Promise.all(days.map((date) => calendarApi.listTasks(token, date)));
+  const tasks = taskDays.flat();
+  const completed = tasks.filter((task) => task.status === 'completed' && !task.failedAt).length;
+  const missed = tasks.filter((task) => Boolean(task.failedAt)).length;
+  const total = tasks.length;
+  const completionRate = total ? Math.round((completed / total) * 100) : 0;
+
+  return [
+    {
+      id: 'tasks',
+      title: 'Task completion',
+      value: `${completed}/${total}`,
+      detail: `${completionRate}% completed over the last 7 days.`
+    },
+    {
+      id: 'missed',
+      title: 'Missed tasks',
+      value: `${missed}`,
+      detail: missed ? 'These still count against your weekly rhythm.' : 'No missed tasks this week.'
+    }
+  ];
+}
+
 export function HomeScreen() {
   const { token, user } = useAuth();
   const navigation = useNavigation<any>();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
-  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [schedule, setSchedule] = useState<WakeupScheduleResponse | null>(null);
   const [commuteInvalidated, setCommuteInvalidated] = useState(false);
+  const [commuteWeather, setCommuteWeather] = useState<Record<string, CommuteWeather>>({});
+  const [weeklyPulse, setWeeklyPulse] = useState<Array<{ id: string; title: string; value: string; detail: string }>>([]);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -55,18 +89,31 @@ export function HomeScreen() {
 
     const range = todayRange();
     try {
-      const [taskItems, eventItems, analyticsSummary, wakeupSchedule, invalidated] = await Promise.all([
+      const [taskItems, eventItems, wakeupSchedule, invalidated, pulseCards] = await Promise.all([
         calendarApi.listTasks(token, range.date),
         calendarApi.listEvents(token, range.start, range.end),
-        recommendationsApi.getAnalyticsSummary(token, 'week'),
         calendarApi.getWakeupSchedule(token),
-        isTodayCommuteInvalidated()
+        isTodayCommuteInvalidated(),
+        buildWeeklyPulse(token)
       ]);
       setTasks(taskItems);
       setEvents(eventItems);
-      setAnalytics(analyticsSummary);
       setSchedule(wakeupSchedule);
       setCommuteInvalidated(invalidated);
+      setWeeklyPulse(pulseCards);
+
+      const commuteEntries = invalidated ? [] : buildCommuteCards(eventItems);
+      const weatherEntries = await Promise.all(commuteEntries.map(async (entry) => {
+        if (entry.latitude == null || entry.longitude == null || !entry.toStartTime) {
+          return [entry.id, null] as const;
+        }
+        try {
+          return [entry.id, await fetchCommuteWeather(entry.latitude, entry.longitude, entry.toStartTime)] as const;
+        } catch {
+          return [entry.id, null] as const;
+        }
+      }));
+      setCommuteWeather(Object.fromEntries(weatherEntries.filter((item): item is readonly [string, CommuteWeather] => Boolean(item[1]))));
     } catch (error) {
       Alert.alert('Home failed to load', error instanceof Error ? error.message : 'Unexpected error');
     }
@@ -80,7 +127,7 @@ export function HomeScreen() {
 
   return (
     <ScreenShell footer={<AdCard />}>
-      <BrandHeader title={`Welcome back, ${user?.name ?? 'there'}`} badge="FocusFlow" />
+      <BrandHeader title={`Welcome back, ${user?.name ?? 'there'}`} badge="FocusFlow" subtitle="Today at a glance" />
 
       <SectionHeader title="Tasks of the day" />
       {tasks.map((task) => (
@@ -109,8 +156,8 @@ export function HomeScreen() {
       <SectionHeader title="Today’s events" />
       {events.map((event, index) => (
         <Fragment key={event.id}>
-          <EventCard key={event.id} event={event} onPress={() => navigation.navigate('EventEditor', { mode: 'edit', event })} />
-          {!commuteInvalidated && commuteCards[index] ? <CommuteCard commute={commuteCards[index]} /> : null}
+          <EventCard event={event} onPress={() => navigation.navigate('EventEditor', { mode: 'edit', event })} />
+          {!commuteInvalidated && commuteCards[index] ? <CommuteCard commute={commuteCards[index]} weather={commuteWeather[commuteCards[index].id]} /> : null}
         </Fragment>
       ))}
       {commuteInvalidated ? (
@@ -126,15 +173,15 @@ export function HomeScreen() {
       </SurfaceCard>
 
       <SectionHeader title="Weekly pulse" />
-      {analytics ? analytics.summaryCards.map((card) => (
+      {weeklyPulse.map((card) => (
         <SurfaceCard key={card.id} tone="raised">
           <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: '800' }}>{card.title}</Text>
           <Text style={{ color: theme.colors.primary, fontSize: 24, fontWeight: '800' }}>{card.value}</Text>
           <Text style={{ color: theme.colors.textMuted, ...theme.typography.body }}>{card.detail}</Text>
         </SurfaceCard>
-      )) : null}
+      ))}
 
-      {user?.plan === 'free' ? <UpgradeCard /> : null}
+      <UpgradeCard />
     </ScreenShell>
   );
 }
